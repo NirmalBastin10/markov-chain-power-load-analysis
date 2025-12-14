@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Power Grid Load Analysis - Markov Chain</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#137fec",
+              "background-light": "#f6f7f8",
+              "background-dark": "#101922",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+      }
+    </style>
+  </head>
+  <body class="font-display bg-background-light dark:bg-background-dark">
+    <div
+      class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden"
+    >
+      <div class="layout-container flex h-full grow flex-col">
+        <div
+          class="px-4 sm:px-8 md:px-20 lg:px-40 flex flex-1 justify-center py-8 sm:py-10"
+        >
+          <div
+            class="layout-content-container flex flex-col max-w-[1100px] flex-1"
+          >
+            <!-- Page Heading -->
+            <div class="flex flex-wrap justify-between gap-3 p-4 text-center">
+              <p
+                class="text-[#0d141b] dark:text-white text-2xl sm:text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em] w-full"
+              >
+                Power Grid Load Verification using Markov Chain Analysis
+              </p>
+              <p
+                class="text-[#4c739a] dark:text-slate-400 text-sm sm:text-base font-normal leading-normal w-full"
+              >
+                Three-state Markov chain model for daily load levels. Adjust
+                transition probabilities, initial conditions and see how the
+                grid evolves and stabilizes over time.
+              </p>
+            </div>
+
+            <!-- Inputs -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mt-4">
+              <!-- Transition Matrix Card -->
+              <div
+                class="flex flex-col gap-4 p-4 sm:p-6 bg-white dark:bg-background-dark/50 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] lg:col-span-2"
+              >
+                <div class="flex flex-col gap-1">
+                  <div
+                    class="flex flex-wrap items-center justify-between gap-3"
+                  >
+                    <p
+                      class="text-[#0d141b] dark:text-white text-lg sm:text-xl font-bold leading-tight tracking-[-0.015em]"
+                    >
+                      Transition Matrix
+                    </p>
+
+                    <!-- Example selector -->
+                    <div class="flex items-center gap-2 text-xs sm:text-sm">
+                      <span
+                        class="text-xs text-[#4c739a] dark:text-slate-400 font-medium"
+                        >Load example:</span
+                      >
+                      <select
+                        id="exampleSelect"
+                        class="form-select rounded-lg h-9 px-3 text-xs"
+                      >
+                        <option value="1">Example 1 – Stable low load</option>
+                        <option value="2">
+                          Example 2 – High overload risk
+                        </option>
+                        <option value="3">Example 3 – Fluctuating load</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <p
+                    class="text-[#4c739a] dark:text-slate-400 text-xs sm:text-sm font-normal leading-normal"
+                  >
+                    Enter the 3×3 transition probabilities. Each row is “today’s
+                    state”, each column is “tomorrow’s state”. Rows are
+                    auto-normalized to sum to 1.
+                  </p>
+                </div>
+
+                <!-- State labels -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                  <label class="flex flex-col">
+                    <span
+                      class="text-xs font-medium text-[#0d141b] dark:text-slate-300 mb-1"
+                      >State 1 name</span
+                    >
+                    <input
+                      id="state1Name"
+                      class="form-input rounded-lg h-9 px-3 text-sm"
+                      placeholder="Low load (L1)"
+                    />
+                  </label>
+                  <label class="flex flex-col">
+                    <span
+                      class="text-xs font-medium text-[#0d141b] dark:text-slate-300 mb-1"
+                      >State 2 name</span
+                    >
+                    <input
+                      id="state2Name"
+                      class="form-input rounded-lg h-9 px-3 text-sm"
+                      placeholder="Normal load (L2)"
+                    />
+                  </label>
+                  <label class="flex flex-col">
+                    <span
+                      class="text-xs font-medium text-[#0d141b] dark:text-slate-300 mb-1"
+                      >State 3 name</span
+                    >
+                    <input
+                      id="state3Name"
+                      class="form-input rounded-lg h-9 px-3 text-sm"
+                      placeholder="Overload (L3)"
+                    />
+                  </label>
+                </div>
+
+                <div class="flex flex-col gap-4 mt-2">
+                  <!-- Row 1 -->
+                  <div class="flex w-full flex-wrap items-end gap-3 sm:gap-4">
+                    <label class="flex flex-col min-w-0 flex-1">
+                      <p
+                        class="text-[#0d141b] dark:text-slate-300 text-[11px] sm:text-xs font-medium leading-normal pb-1"
+                      >
+                        L1 → L1
+                      </p>
+                      <input
+                        id="m11"
+                        class="form-input rounded-lg h-10 px-3 text-sm"
+                        placeholder="0.8"
+                      />
+                    </label>
+                    <label class="flex flex-col min-w-0 flex-1">
+                      <p
+                        class="text-[#0d141b] dark:text-slate-300 text-[11px] sm:text-xs font-medium leading-normal pb-1"
+                      >
+                        L1 → L2
+                      </p>
+                      <input
+                        id="m12"
+                        class="form-input rounded-lg h-10 px-3 text-sm"
+                        placeholder="0.1"
+                      />
+                    </label>
+                    <label class="flex flex-col min-w-0 flex-1">
+                      <p
+                        class="text-[#0d141b] dark:text-slate-300 text-[11px] sm:text-xs font-medium leading-normal pb-1"
+                      >
+                        L1 → L3
+                      </p>
+                      <input
+                        id="m13"
+                        class="form-input rounded-lg h-10 px-3 text-sm"
+                        placeholder="0.1"
+                      />
+                    </label>
+                  </div>
+
+                  <!-- Row 2 -->
+                  <div class="flex w-full flex-wrap items-end gap-3 sm:gap-4">
+                    <label class="flex flex-col min-w-0 flex-1">
+                      <p
+                        class="text-[#0d141b] dark:text-slate-300 text-[11px] sm:text-xs font-medium leading-normal pb-1"
+                      >
+                        L2 → L1
+                      </p>
+                      <input
+                        id="m21"
+                        class="form-input rounded-lg h-10 px-3 text-sm"
+                        placeholder="0.2"
+                      />
+                    </label>
+                    <label class="flex flex-col min-w-0 flex-1">
+                      <p
+                        class="text-[#0d141b] dark:text-slate-300 text-[11px] sm:text-xs font-medium leading-normal pb-1"
+                      >
+                        L2 → L2
+                      </p>
+                      <input
+                        id="m22"
+                        class="form-input rounded-lg h-10 px-3 text-sm"
+                        placeholder="0.6"
+                      />
+                    </label>
+                    <label class="flex flex-col min-w-0 flex-1">
+                      <p
+                        class="text-[#0d141b] dark:text-slate-300 text-[11px] sm:text-xs font-medium leading-normal pb-1"
+                      >
+                        L2 → L3
+                      </p>
+                      <input
+                        id="m23"
+                        class="form-input rounded-lg h-10 px-3 text-sm"
+                        placeholder="0.2"
+                      />
+                    </label>
+                  </div>
+
+                  <!-- Row 3 -->
+                  <div class="flex w-full flex-wrap items-end gap-3 sm:gap-4">
+                    <label class="flex flex-col min-w-0 flex-1">
+                      <p
+                        class="text-[#0d141b] dark:text-slate-300 text-[11px] sm:text-xs font-medium leading-normal pb-1"
+                      >
+                        L3 → L1
+                      </p>
+                      <input
+                        id="m31"
+                        class="form-input rounded-lg h-10 px-3 text-sm"
+                        placeholder="0.3"
+                      />
+                    </label>
+                    <label class="flex flex-col min-w-0 flex-1">
+                      <p
+                        class="text-[#0d141b] dark:text-slate-300 text-[11px] sm:text-xs font-medium leading-normal pb-1"
+                      >
+                        L3 → L2
+                      </p>
+                      <input
+                        id="m32"
+                        class="form-input rounded-lg h-10 px-3 text-sm"
+                        placeholder="0.3"
+                      />
+                    </label>
+                    <label class="flex flex-col min-w-0 flex-1">
+                      <p
+                        class="text-[#0d141b] dark:text-slate-300 text-[11px] sm:text-xs font-medium leading-normal pb-1"
+                      >
+                        L3 → L3
+                      </p>
+                      <input
+                        id="m33"
+                        class="form-input rounded-lg h-10 px-3 text-sm"
+                        placeholder="0.4"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Initial Conditions & Settings -->
+              <div
+                class="flex flex-col gap-4 p-4 sm:p-6 bg-white dark:bg-background-dark/50 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)]"
+              >
+                <div class="flex flex-col gap-1">
+                  <p
+                    class="text-[#0d141b] dark:text-white text-lg sm:text-xl font-bold leading-tight tracking-[-0.015em]"
+                  >
+                    Initial Conditions &amp; Settings
+                  </p>
+                  <p
+                    class="text-[#4c739a] dark:text-slate-400 text-xs sm:text-sm font-normal leading-normal"
+                  >
+                    Set starting distribution, prediction horizon, per-state
+                    load levels and overload definition.
+                  </p>
+                </div>
+
+                <!-- Initial distribution -->
+                <div class="flex flex-col gap-2 mt-1">
+                  <p
+                    class="text-[#0d141b] dark:text-slate-300 text-sm font-medium leading-normal"
+                  >
+                    Initial Load Distribution
+                  </p>
+                  <div class="flex w-full flex-wrap items-end gap-3">
+                    <label class="flex flex-col min-w-0 flex-1">
+                      <span
+                        class="text-[11px] text-[#0d141b] dark:text-slate-300 font-medium pb-1"
+                        >Prob (L1)</span
+                      >
+                      <input
+                        id="i1"
+                        class="form-input rounded-lg h-10 px-3 text-sm"
+                        placeholder="1.0"
+                      />
+                    </label>
+                    <label class="flex flex-col min-w-0 flex-1">
+                      <span
+                        class="text-[11px] text-[#0d141b] dark:text-slate-300 font-medium pb-1"
+                        >Prob (L2)</span
+                      >
+                      <input
+                        id="i2"
+                        class="form-input rounded-lg h-10 px-3 text-sm"
+                        placeholder="0.0"
+                      />
+                    </label>
+                    <label class="flex flex-col min-w-0 flex-1">
+                      <span
+                        class="text-[11px] text-[#0d141b] dark:text-slate-300 font-medium pb-1"
+                        >Prob (L3)</span
+                      >
+                      <input
+                        id="i3"
+                        class="form-input rounded-lg h-10 px-3 text-sm"
+                        placeholder="0.0"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Horizon and per-state loads -->
+                <div class="flex flex-col gap-3 mt-2">
+                  <label class="flex flex-col">
+                    <p
+                      class="text-[#0d141b] dark:text-slate-300 text-sm font-medium leading-normal pb-1"
+                    >
+                      Number of days to predict
+                    </p>
+                    <input
+                      id="days"
+                      class="form-input rounded-lg h-10 px-3 text-sm"
+                      placeholder="10"
+                    />
+                  </label>
+
+                  <div class="flex flex-col gap-1 mt-1">
+                    <p
+                      class="text-[#0d141b] dark:text-slate-300 text-sm font-medium leading-normal"
+                    >
+                      Per-state load levels (MW)
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <label class="flex flex-col">
+                        <span
+                          class="text-[11px] text-[#0d141b] dark:text-slate-300 font-medium pb-1"
+                          >Load in state 1</span
+                        >
+                        <input
+                          id="load1"
+                          class="form-input rounded-lg h-10 px-3 text-sm"
+                          placeholder="50"
+                        />
+                      </label>
+                      <label class="flex flex-col">
+                        <span
+                          class="text-[11px] text-[#0d141b] dark:text-slate-300 font-medium pb-1"
+                          >Load in state 2</span
+                        >
+                        <input
+                          id="load2"
+                          class="form-input rounded-lg h-10 px-3 text-sm"
+                          placeholder="100"
+                        />
+                      </label>
+                      <label class="flex flex-col">
+                        <span
+                          class="text-[11px] text-[#0d141b] dark:text-slate-300 font-medium pb-1"
+                          >Load in state 3</span
+                        >
+                        <input
+                          id="load3"
+                          class="form-input rounded-lg h-10 px-3 text-sm"
+                          placeholder="150"
+                        />
+                      </label>
+                    </div>
+                    <span
+                      class="text-[11px] text-[#4c739a] dark:text-slate-400 mt-1"
+                      >Expected load uses \(E[\text{MW}] = p_1 L_1 + p_2 L_2 +
+                      p_3 L_3\).</span
+                    >
+                  </div>
+
+                  <!-- Overload state selection -->
+                  <label class="flex flex-col">
+                    <p
+                      class="text-[#0d141b] dark:text-slate-300 text-sm font-medium leading-normal pb-1"
+                    >
+                      Overload / Risk state
+                    </p>
+                    <select
+                      id="riskState"
+                      class="form-select rounded-lg h-10 px-3 text-sm"
+                    >
+                      <option value="2">State 3 (L3)</option>
+                      <option value="0">State 1 (L1)</option>
+                      <option value="1">State 2 (L2)</option>
+                    </select>
+                    <span
+                      class="text-[11px] text-[#4c739a] dark:text-slate-400 mt-1"
+                      >Probability of this state will be tracked as overload
+                      risk.</span
+                    >
+                  </label>
+                </div>
+
+                <!-- Actions + Messages -->
+                <div class="flex flex-col gap-3 mt-2">
+                  <div class="flex gap-2 flex-wrap">
+                    <button
+                      id="calculateBtn"
+                      class="flex items-center justify-center gap-2 h-10 px-5 bg-primary text-white text-sm font-medium rounded-lg shadow-[0_4px_12px_rgba(19,127,236,0.25)] hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                    >
+                      <span class="material-symbols-outlined text-base"
+                        >calculate</span
+                      >
+                      <span>Calculate</span>
+                    </button>
+                    <button
+                      id="resetBtn"
+                      class="flex items-center justify-center gap-2 h-10 px-4 bg-slate-100 dark:bg-slate-800 text-xs text-[#0d141b] dark:text-slate-100 font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"
+                    >
+                      Apply selected example
+                    </button>
+                  </div>
+                  <div
+                    id="message"
+                    class="text-xs text-amber-700 dark:text-amber-300 min-h-[1.25rem]"
+                  ></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Results -->
+            <div class="flex flex-col gap-6 sm:gap-8 mt-6 sm:mt-8">
+              <!-- Top results: steady state + overload -->
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Steady-State Card -->
+                <div
+                  class="flex flex-col gap-4 p-4 sm:p-6 bg-white dark:bg-background-dark/50 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)]"
+                >
+                  <p
+                    class="text-[#0d141b] dark:text-white text-lg sm:text-xl font-bold leading-tight tracking-[-0.015em]"
+                  >
+                    Steady-State Probabilities
+                  </p>
+                  <div
+                    class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center"
+                  >
+                    <div
+                      class="p-3 sm:p-4 bg-slate-50 dark:bg-background-dark rounded-lg"
+                    >
+                      <p
+                        class="text-xs text-[#4c739a] dark:text-slate-400 font-medium"
+                        id="labelL1"
+                      >
+                        Prob (L1)
+                      </p>
+                      <p
+                        id="res1"
+                        class="text-xl sm:text-2xl text-primary font-bold mt-1"
+                      >
+                        —
+                      </p>
+                    </div>
+                    <div
+                      class="p-3 sm:p-4 bg-slate-50 dark:bg-background-dark rounded-lg"
+                    >
+                      <p
+                        class="text-xs text-[#4c739a] dark:text-slate-400 font-medium"
+                        id="labelL2"
+                      >
+                        Prob (L2)
+                      </p>
+                      <p
+                        id="res2"
+                        class="text-xl sm:text-2xl text-primary font-bold mt-1"
+                      >
+                        —
+                      </p>
+                    </div>
+                    <div
+                      class="p-3 sm:p-4 bg-slate-50 dark:bg-background-dark rounded-lg"
+                    >
+                      <p
+                        class="text-xs text-[#4c739a] dark:text-slate-400 font-medium"
+                        id="labelL3"
+                      >
+                        Prob (L3)
+                      </p>
+                      <p
+                        id="res3"
+                        class="text-xl sm:text-2xl text-primary font-bold mt-1"
+                      >
+                        —
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Overload / Expected Load Card -->
+                <div
+                  class="flex flex-col gap-3 p-4 sm:p-6 bg-white dark:bg-background-dark/50 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)]"
+                >
+                  <p
+                    class="text-[#0d141b] dark:text-white text-lg sm:text-xl font-bold leading-tight tracking-[-0.015em]"
+                  >
+                    Overload &amp; Expected Load
+                  </p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div
+                      class="p-3 bg-slate-50 dark:bg-background-dark rounded-lg"
+                    >
+                      <p
+                        class="text-xs text-[#4c739a] dark:text-slate-400 font-medium"
+                      >
+                        Steady overload probability
+                      </p>
+                      <p
+                        id="steadyRisk"
+                        class="text-lg text-primary font-bold mt-1"
+                      >
+                        —
+                      </p>
+                      <p
+                        class="text-[11px] text-[#4c739a] dark:text-slate-400 mt-1"
+                      >
+                        Long-run chance grid is in selected overload state on a
+                        random day.
+                      </p>
+                    </div>
+                    <div
+                      class="p-3 bg-slate-50 dark:bg-background-dark rounded-lg"
+                    >
+                      <p
+                        class="text-xs text-[#4c739a] dark:text-slate-400 font-medium"
+                      >
+                        Expected overload days (horizon)
+                      </p>
+                      <p
+                        id="expectedOverloadDays"
+                        class="text-lg text-primary font-bold mt-1"
+                      >
+                        —
+                      </p>
+                      <p
+                        class="text-[11px] text-[#4c739a] dark:text-slate-400 mt-1"
+                      >
+                        Approximate count of overload days within the simulated
+                        horizon.
+                      </p>
+                    </div>
+                    <div
+                      class="p-3 bg-slate-50 dark:bg-background-dark rounded-lg sm:col-span-2"
+                    >
+                      <p
+                        class="text-xs text-[#4c739a] dark:text-slate-400 font-medium"
+                      >
+                        Expected load on last simulated day
+                      </p>
+                      <p
+                        id="expectedLoadLastDay"
+                        class="text-lg text-primary font-bold mt-1"
+                      >
+                        —
+                      </p>
+                      <p
+                        class="text-[11px] text-[#4c739a] dark:text-slate-400 mt-1"
+                      >
+                        Combines final-day probabilities with per-state loads.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Chart -->
+              <div
+                class="flex flex-col gap-4 p-4 sm:p-6 bg-white dark:bg-background-dark/50 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)]"
+              >
+                <p
+                  class="text-[#0d141b] dark:text-white text-lg sm:text-xl font-bold leading-tight tracking-[-0.015em]"
+                >
+                  Daily Probability Trends
+                </p>
+                <p
+                  class="text-[#4c739a] dark:text-slate-400 text-xs sm:text-sm font-normal leading-normal mb-2"
+                >
+                  Evolution of state probabilities vs day. Convergence indicates
+                  approach to steady state.
+                </p>
+                <div class="w-full overflow-x-auto h-72 sm:h-80">
+                  <canvas id="probChart"></canvas>
+                </div>
+              </div>
+
+              <!-- Day-by-Day Table Card -->
+              <div
+                class="flex flex-col gap-4 p-4 sm:p-6 bg-white dark:bg-background-dark/50 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)]"
+              >
+                <p
+                  class="text-[#0d141b] dark:text-white text-lg sm:text-xl font-bold leading-tight tracking-[-0.015em]"
+                >
+                  Daily Probability Predictions
+                </p>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 dark:bg-background-dark">
+                      <tr>
+                        <th
+                          class="p-3 text-[11px] sm:text-xs font-semibold text-[#0d141b] dark:text-slate-300 rounded-l-lg"
+                        >
+                          Day
+                        </th>
+                        <th
+                          class="p-3 text-[11px] sm:text-xs font-semibold text-[#0d141b] dark:text-slate-300"
+                          id="thL1"
+                        >
+                          Probability (L1)
+                        </th>
+                        <th
+                          class="p-3 text-[11px] sm:text-xs font-semibold text-[#0d141b] dark:text-slate-300"
+                          id="thL2"
+                        >
+                          Probability (L2)
+                        </th>
+                        <th
+                          class="p-3 text-[11px] sm:text-xs font-semibold text-[#0d141b] dark:text-slate-300 rounded-r-lg"
+                          id="thL3"
+                        >
+                          Probability (L3)
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody
+                      id="tableBody"
+                      class="divide-y divide-slate-100 dark:divide-slate-800 text-xs sm:text-sm"
+                    >
+                      <!-- rows injected here -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Link external JS -->
+    <script src="script.js"></script>
+  </body>
+</html>
