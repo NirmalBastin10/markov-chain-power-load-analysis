@@ -14,9 +14,8 @@ The UI is built with Tailwind CSS and the plots use Chart.js. Everything runs fu
 ---
 
 ## Live Demo
-
-> **GitHub Pages link:**  
-> `https://nirmalbastin10.github.io/markov-chain-power-load-analysis/`  
+> **GitHub Pages link:**
+> https://nirmalbastin10.github.io/markov-chain-power-load-analysis/
 
 ---
 
